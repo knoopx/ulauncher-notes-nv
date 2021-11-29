@@ -29,9 +29,16 @@ from .cmd_arg_utils import argbuild
 from . import query_command
 from .clipboard import GtkClipboard
 
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 MAX_RESULTS_VISIBLE = 10
 
+def get_gtk_icon_path(*names, size = 0):
+    file_info = Gtk.IconTheme.get_default().choose_icon(names, size, 0)
+    if file_info:
+        return file_info.get_filename()
 
 def error_item(message: str, details: Optional[str] = None) -> ResultItem:
     """
@@ -39,11 +46,11 @@ def error_item(message: str, details: Optional[str] = None) -> ResultItem:
     """
     if not details:
         return ExtensionSmallResultItem(
-            icon="images/error.svg", name=message, on_enter=DoNothingAction()
+            icon=get_gtk_icon_path("error"), name=message, on_enter=DoNothingAction()
         )
 
     return ExtensionResultItem(
-        icon="images/error.svg",
+        icon=get_gtk_icon_path("error"),
         name=message,
         description=details,
         on_enter=DoNothingAction(),
@@ -54,7 +61,7 @@ def note_filename_from_query(fn: str) -> str:
     """
     Remove characters from note title that could cause filename problems
     """
-    fn = re.sub(r"[^a-zA-Z0-9 _\-]", "", fn)
+    fn = re.sub(r"[^a-zA-Z0-9 _\-\/]", "", fn)
     fn = re.sub(r"\s+", " ", fn)
     fn = re.sub(r"^\s+", "", fn)
     fn = re.sub(r"\s+$", "", fn)
@@ -96,12 +103,15 @@ class NotesNv:
         """
         Whether the search query can be turned into a new unique note title
         """
-        new_note_title = note_filename_from_query(query_arg)
-        if not new_note_title:
+        new_note_filename = note_filename_from_query(query_arg)
+        if not new_note_filename:
             return False
 
-        exts = self.get_note_file_extensions()
-        return not contains_filename_match(query_matches, new_note_title, exts)
+        os.path.splitext(new_note_filename)
+
+        exists = contains_filename_match(query_matches, new_note_filename, self.get_note_file_extensions())
+
+        return not exists
 
     def new_note_filename(self, query_arg: str) -> str:
         """
@@ -116,8 +126,8 @@ class NotesNv:
         Construct "Create empty note" result item
         """
         return ExtensionResultItem(
-            icon="images/create-note.svg",
-            name="Create empty note",
+            icon=get_gtk_icon_path("document-new-symbolic"),
+            name="Create new note",
             description=new_note_filename,
             on_enter=callable_action(
                 self.create_empty_note,
@@ -131,7 +141,7 @@ class NotesNv:
         Construct "Create note from clipboard" result item
         """
         return ExtensionResultItem(
-            icon="images/create-note.svg",
+            icon=get_gtk_icon_path("document-new-symbolic"),
             name="Create note from clipboard",
             description=new_note_filename,
             on_enter=callable_action(
@@ -150,7 +160,7 @@ class NotesNv:
         items = []
         for match in matches[:MAX_RESULTS_VISIBLE]:
             item = ExtensionResultItem(
-                icon="images/note.svg",
+                icon=get_gtk_icon_path("folder-documents-symbolic"),
                 name=match.filename,
                 description=match.match_summary,
                 on_enter=callable_action(
@@ -178,7 +188,7 @@ class NotesNv:
         items = []
         for match in matches[:MAX_RESULTS_VISIBLE]:
             item = ExtensionResultItem(
-                icon="images/copy-note.svg",
+                icon=get_gtk_icon_path("edit-copy-symbolic"),
                 name=f"Copy: {match.filename}",
                 description=match.match_summary,
                 on_enter=callable_action(
@@ -223,7 +233,7 @@ class NotesNv:
 
         items = [
             ExtensionResultItem(
-                icon="images/notes-nv.svg",
+                icon=get_gtk_icon_path("system-search-symbolic"),
                 name="Please enter search query...",
                 on_enter=DoNothingAction(),
             )
@@ -232,7 +242,7 @@ class NotesNv:
         for fn in recently_modified[:MAX_RESULTS_VISIBLE]:
             items.append(
                 ExtensionResultItem(
-                    icon="images/note.svg",
+                    icon=get_gtk_icon_path("folder-documents-symbolic"),
                     name=fn,
                     on_enter=callable_action(
                         self.open_note, os.path.join(self.get_notes_path(), fn)
@@ -241,33 +251,32 @@ class NotesNv:
             )
         return RenderResultListAction(items)
 
-    def create_empty_note(self, path: str) -> BaseAction:
+    def create_note(self, path: str, content: str) -> BaseAction:
         """
-        Create empty note file at the given path and open it
+        Create note file at the given path with the given content and open it
         """
         try:
-            with open(path, "x"):
-                pass
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "x") as f:
+                f.write(content)
         except OSError as exc:
             return RenderResultListAction(
                 [error_item("Could not create note file", exc.strerror)]
             )
         return self.open_note(path)
 
+    def create_empty_note(self, path: str) -> BaseAction:
+        """
+        Create empty note file at the given path and open it
+        """
+        self.create_note(path, "")
+
     def create_note_from_clipboard(self, path: str) -> BaseAction:
         """
         Create a note file with the contents of the clipboard
         at the given path and open it
         """
-        try:
-            with open(path, "x") as f:
-                text = self.clipboard.get_text()
-                print(text, file=f)
-        except OSError as exc:
-            return RenderResultListAction(
-                [error_item("Could not create note file", exc.strerror)]
-            )
-        return self.open_note(path)
+        self.create_note(path, self.clipboard.get_text())
 
     def open_note(self, path: str) -> BaseAction:
         """
@@ -301,7 +310,7 @@ class NotesNv:
         items = []
         items.append(
             ExtensionResultItem(
-                icon="images/copy-note.svg",
+                icon=get_gtk_icon_path("edit-copy-symbolic"),
                 name="Copy note contents to clipboard",
                 description=filename,
                 on_enter=callable_action(

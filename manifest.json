@@ -1,39 +1,39 @@
 {
-  "required_api_version": "^2.0.0",
-  "name": "Notes NV",
-  "description": "Search, store and retrieve notes. Inspired by NotationalVelocity.",
-  "developer_name": "Peter Bakhirev",
-  "icon": "images/notes-nv.svg",
+  "description": "Search, store and retrieve notes.",
+  "developer_name": "Víctor Martínez (original project by Peter Bakhirev)",
+  "icon": "images/extension-icon.svg",
+  "name": "Notes",
   "options": {
-    "query_debounce": 0.1
+    "query_debounce": 0.2
   },
   "preferences": [
     {
+      "default_value": "note",
       "id": "search",
-      "type": "keyword",
-      "name": "Search notes",
-      "default_value": "nv"
+      "name": "Notes",
+      "type": "keyword"
     },
     {
-      "id": "notes-directory-path",
-      "type": "input",
-      "name": "Path to directory with notes",
+      "default_value": "~/notes/",
       "description": "Each note is stored in a separate text file.",
-      "default_value": "~/notes/"
+      "id": "notes-directory-path",
+      "name": "Path to directory with notes",
+      "type": "input"
     },
     {
-      "id": "file-extensions",
-      "type": "input",
-      "name": "Note file extensions",
+      "default_value": "md,txt",
       "description": "Search will be limited to files with these extensions. Comma-separated list.",
-      "default_value": "txt,md"
+      "id": "file-extensions",
+      "name": "Note file extensions",
+      "type": "input"
     },
     {
-      "id": "open-note-command",
-      "type": "input",
-      "name": "Command to open a note file",
+      "default_value": "gedit {fn}",
       "description": "If empty, will use default app via xdg-open. Use {fn} as placeholder for the full path to the note file (if not specified, path will be passed as the last arg).",
-      "default_value": "gedit {fn}"
+      "id": "open-note-command",
+      "name": "Command to open a note file",
+      "type": "input"
     }
-  ]
+  ],
+  "required_api_version": "^2.0.0"
 }
